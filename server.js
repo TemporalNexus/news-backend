@@ -16,6 +16,7 @@ app.get('/api/news', async (req, res) => {
   try {
     const response = await fetch(NEWSAPI_URL);
     const data = await response.json();
+    console.log("NewsAPI response:", data);
 
     const rewrittenArticles = await Promise.all(
       data.articles.map(async (article) => {
