@@ -1,51 +1,53 @@
+// server.js - Bypasses GPT rewriting to avoid quota issues
 import express from 'express';
 import fetch from 'node-fetch';
 import { config } from 'dotenv';
-import OpenAI from 'openai';
 
 config();
 
 const app = express();
 const PORT = process.env.PORT || 3000;
 
-const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
+// Ping route to verify server responsiveness
+app.get('/ping', (req, res) => {
+  console.log("Received /ping request");
+  res.send("pong");
+});
 
-const NEWSAPI_URL = 'https://newsapi.org/v2/top-headlines?category=entertainment&pageSize=5&language=en&apiKey=' + process.env.NEWSAPI_KEY;
+// Updated to broader search query
+const NEWSAPI_URL = `https://newsapi.org/v2/everything?q=celebrity%20OR%20fame%20OR%20pop%20culture&sortBy=publishedAt&pageSize=5&language=en&apiKey=${process.env.NEWSAPI_KEY}`;
 
 app.get('/api/news', async (req, res) => {
   try {
     const response = await fetch(NEWSAPI_URL);
     const data = await response.json();
-    console.log("NewsAPI response:", data);
 
-    const rewrittenArticles = await Promise.all(
-      data.articles.map(async (article) => {
-        const prompt = `Rewrite the following news article in a clear, factual tone that highlights its cultural significance. Avoid clickbait.\n\nTitle: ${article.title}\n\nContent: ${article.description || article.content}`;
+    console.log("NewsAPI response:", data); // 🔍 Log NewsAPI data for debugging
 
-        const completion = await openai.chat.completions.create({
-  model: 'gpt-3.5-turbo',
-  messages: [{ role: 'user', content: prompt }],
-  temperature: 0.7,
-});
+    if (!data.articles || data.articles.length === 0) {
+      return res.json({ articles: [] });
+    }
 
+    const simplifiedArticles = data.articles.map((article) => ({
+      title: article.title,
+      summary: article.description || article.content || '',
+      image: article.urlToImage || null,
+      source: article.source.name,
+      publishedAt: article.publishedAt,
+      url: article.url
+    }));
 
-        return {
-          title: article.title,
-          summary: completion.choices[0].message.content.trim(),
-          image: article.urlToImage,
-          source: article.source.name,
-          publishedAt: article.publishedAt,
-          url: article.url,
-        };
-      })
-    );
-
-    res.json({ articles: rewrittenArticles });
+    res.json({ articles: simplifiedArticles });
   } catch (err) {
-    console.error(err);
-    res.status(500).json({ error: 'Failed to fetch or rewrite news.' });
+    console.error("Error fetching articles:", err);
+    res.status(500).json({ error: 'Failed to fetch news.' });
   }
 });
+
+app.listen(PORT, () => {
+  console.log(`Server running on port ${PORT}`);
+});
+
 
 app.listen(PORT, () => {
   console.log(`Server running on port ${PORT}`);
