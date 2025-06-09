@@ -22,8 +22,8 @@ app.get('/api/news', async (req, res) => {
         const prompt = `Rewrite the following news article in a clear, factual tone that highlights its cultural significance. Avoid clickbait.\n\nTitle: ${article.title}\n\nContent: ${article.description || article.content}`;
 
         const completion = await openai.chat.completions.create({
-  messages: [{ role: 'user', content: prompt }],
   model: 'gpt-3.5-turbo',
+  messages: [{ role: 'user', content: prompt }],
   temperature: 0.7,
 });
 
